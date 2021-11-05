@@ -3,6 +3,11 @@ function prompt {
     Import-Module posh-git
     Set-PSReadlineKeyHandler -Chord Tab -Function MenuComplete
 
+    $sshKeysListed = $(ssh-add -l)
+    if($sshKeysListed -like ""){
+        $(ssh-add $PROFILE\.ssh\id_rsa)
+    }
+
     #Assign Windows Title Text
     # $host.ui.RawUI.WindowTitle = "Current Folder: $pwd"
 
