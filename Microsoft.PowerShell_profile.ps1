@@ -2,6 +2,7 @@
 function prompt {
     Import-Module posh-git
     Set-PSReadlineKeyHandler -Chord Tab -Function MenuComplete
+    Start-Service ssh-agent
 
     $sshKeysListed = $(ssh-add -l)
     if($sshKeysListed -like ""){
