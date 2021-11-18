@@ -43,7 +43,7 @@ function prompt {
 
     # Listen for azure subscription change
     $lastCommand = Get-History -Count 1
-    if($lastCommand -like "az account set --subscription *"){
+    if($lastCommand -like "az account set *"){
         $_ = Get-CachedOperation -Name azureSubscription -Command {az account show --query name} -Force
     }
 
