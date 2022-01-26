@@ -1,4 +1,5 @@
 #!/bin/sh
 
-
-cp "Microsoft.PowerShell_profile.ps1" "$HOME\Documents\PowerShell\Microsoft.PowerShell_profile.ps1"
+TARGET="$HOME\Documents\PowerShell"
+FILENAME="Microsoft.PowerShell_profile.ps1"
+mkdir -p "$TARGET" && cp "$FILENAME" "$TARGET\\$FILENAME"
