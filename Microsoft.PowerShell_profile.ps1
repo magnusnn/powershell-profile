@@ -58,6 +58,39 @@ function prompt {
     return "$ "
 }
 
+function jwtd([String] $token) {
+    Write-Host ""
+    Write-Host ""
+    
+    if (!$token.Contains(".") -or !$token.StartsWith("eyJ")) { 
+        Write-Error "Invalid token" -ErrorAction Stop 
+    }
+    
+    function Get-Base64encode([String] $data){
+        $data = $data.Replace('-', '+').Replace('_', '/')
+        switch ($data.Length % 4) {
+            0 { break }
+            2 { $data += '==' }
+            3 { $data += '=' }
+        }
+        return $data
+    }
+
+    function Get-ConvertOutput([String] $data){
+        return [System.Text.Encoding]::UTF8.GetString([convert]::FromBase64String($data)) | ConvertFrom-Json | ConvertTo-Json
+    }
+
+    $tokenSplit = $token.Split('.')
+    Write-Host "Header:"
+    Write-Host (Get-ConvertOutput -data (Get-Base64encode -data $tokenSplit[0]))
+    Write-Host ""
+    Write-Host "Payload:"
+    Write-Host (Get-ConvertOutput -data (Get-Base64encode -data $tokenSplit[1]))
+    Write-Host ""
+    Write-Host "Signarure:"
+    Write-Host $token.Split('.')[2]
+}
+
 function Get-CachedOperation([String]$Name, [ScriptBlock]$Command, [Switch]$Force){
    $CommandName = "cached_$($Name)"
    $cachedResults = Get-Variable -Scope Global -Name $CommandName -ErrorAction SilentlyContinue | Select -ExpandProperty Value
