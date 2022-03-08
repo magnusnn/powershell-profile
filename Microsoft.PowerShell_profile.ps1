@@ -1,5 +1,4 @@
 
-
 function prompt {
     Set-PSReadlineKeyHandler -Chord Tab -Function MenuComplete
 
@@ -27,13 +26,17 @@ function prompt {
     # Listen for azure subscription change
     $lastCommand = Get-History -Count 1
     if($lastCommand -like "az account set *"){
-        $_ = Get-CachedOperation -Name azureSubscription -Command {az account show --query name} -Force
+        $_ = Get-CachedOperation -Name azAccountShow -Command {az account show --query name} -Force
     }
 
     #Decorate the CMD Prompt
     Write-Host ""
 
-    Write-Host ($(if ($IsAdmin) { '-Admin-' } else { '' })) -BackgroundColor DarkRed -ForegroundColor White -NoNewline
+    if ($IsAdmin){
+        Write-Host "[Admin]" -BackgroundColor DarkRed -ForegroundColor White -NoNewline
+        Write-Host " " -NoNewline
+    }
+
     Write-Host "$CmdPromptUserAndComputer " -ForegroundColor DarkGreen -NoNewline
     Write-Host "$currentFolder " -ForegroundColor Blue -NoNewline
 
@@ -42,15 +45,21 @@ function prompt {
         Write-Host "($gitBranch) " -NoNewline -ForegroundColor Cyan
     }
 
+    [bool]$cacheUpdated = 0
     if (Get-Command "az" -errorAction SilentlyContinue)
     {
-        $azureSubscription = Get-CachedOperation -Name azureSubscription -Command {az account show --query name}
-        $azureSubscription = $azureSubscription.Trim('"')
-        if($azureSubscription -like "*prod*"){
-            Write-Host "[$azureSubscription] " -NoNewline -ForegroundColor DarkRed
+        [CachedOperation]$azAccountShow, [bool]$cacheUpdated = Get-CachedOperation -Name azAccountShow -Command {az account show --query name}
+        $azAccountShowValue = $azAccountShow.Value.Trim('"')
+        if($azAccountShowValue -like "*prod*"){
+            Write-Host "[$azAccountShowValue] " -NoNewline -ForegroundColor DarkRed
         }
         else{
-            Write-Host "[$azureSubscription] " -NoNewline -ForegroundColor Yellow
+            Write-Host "[$azAccountShowValue] " -NoNewline -ForegroundColor Yellow
+        }
+
+        if($cacheUpdated){
+            Write-Host ""
+            Write-Host "Refreshed cache for '$($azAccountShow.Name)'" -NoNewline -ForegroundColor DarkGray
         }
         
     }
@@ -91,16 +100,6 @@ function jwtd([String] $token) {
     Write-Host $tokenSplit[2]
 }
 
-# $DOCKER_DISTRO = "Ubuntu"
-# function docker {
-#     wsl -d $DOCKER_DISTRO docker -H unix:///mnt/wsl/shared-docker/docker.sock @Args
-# }
-
-# function docker-compose {
-#     wsl -d $DOCKER_DISTRO docker-compose -H unix:///mnt/wsl/shared-docker/docker.sock @Args
-# }
-
-
 function number-lookup([string] $number){
     start chrome "https://www.180.no/search/all?w=$($number)"
     # start chrome "https://www.1881.no/?query=$($number)"
@@ -127,13 +126,15 @@ function Set-CachedOperation([CachedOperation] $cache){
 
 function Get-CachedOperation([String]$Name, [ScriptBlock]$Command, [Switch]$Force){
     $cachedResults = Get-CachedOperationFromFile($Name)
+    [bool]$cacheUpdated = 0
 
-    if($force -or $null -eq $cachedResults){
+    if($force -or $null -eq $cachedResults -or $cachedResults.TimeStamp.AddDays(2) -lt [DateTime]::UtcNow){
         $cachedResults = [CachedOperation]::new($Name, $command)
         Set-CachedOperation($cachedResults)
+        $cacheUpdated = 1
     }
 
-    return $cachedResults.Value
+    return $cachedResults, $cacheUpdated
 }
 
 class CachedOperation

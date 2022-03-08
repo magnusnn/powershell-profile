@@ -38,3 +38,15 @@ function Get-CachedOperation([String]$Name, [ScriptBlock]$Command, [Switch]$Forc
     return $cachedResults.Value
 }
 ```
+
+### Docker stuff
+```
+$DOCKER_DISTRO = "Ubuntu"
+function docker {
+    wsl -d $DOCKER_DISTRO docker -H unix:///mnt/wsl/shared-docker/docker.sock @Args
+}
+
+function docker-compose {
+    wsl -d $DOCKER_DISTRO docker-compose -H unix:///mnt/wsl/shared-docker/docker.sock @Args
+}
+```
