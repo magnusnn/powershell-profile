@@ -45,7 +45,6 @@ function prompt {
         Write-Host "($gitBranch) " -NoNewline -ForegroundColor Cyan
     }
 
-    [bool]$cacheUpdated = 0
     if (Get-Command "az" -errorAction SilentlyContinue)
     {
         [CachedOperation]$azAccountShow, [bool]$cacheUpdated = Get-CachedOperation -Name azAccountShow -Command {az account show --query name}
