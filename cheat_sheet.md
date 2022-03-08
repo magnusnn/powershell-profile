@@ -20,3 +20,21 @@ else {
 }
 ```
 
+### Setting cache as variable in global scope
+```
+function Get-CachedOperation([String]$Name, [ScriptBlock]$Command, [Switch]$Force){
+    $CommandName = "cached_$($Name)"
+    $cachedResults = Get-Variable -Scope Global -Name $CommandName -ErrorAction SilentlyContinue | Select -ExpandProperty Value
+    if ($null -eq $cachedResults){
+        $cachedResults = Get-CachedOperationFromFile($Name)
+    }
+
+    if($force -or $null -eq $cachedResults){
+        $cachedResults = [CachedOperation]::new($Name, $command)
+        New-Variable -Scope Global -Name $CommandName -value $cachedResults -Force
+        Set-CachedOperation($cachedResults)
+    }
+
+    return $cachedResults.Value
+}
+```

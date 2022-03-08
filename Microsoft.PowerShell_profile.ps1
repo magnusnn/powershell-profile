@@ -1,4 +1,5 @@
 
+
 function prompt {
     Set-PSReadlineKeyHandler -Chord Tab -Function MenuComplete
 
@@ -32,26 +33,26 @@ function prompt {
     #Decorate the CMD Prompt
     Write-Host ""
 
-    Write-Host ($(if ($IsAdmin) { 'Admin ' } else { '' })) -BackgroundColor DarkRed -ForegroundColor White -NoNewline
+    Write-Host ($(if ($IsAdmin) { '-Admin-' } else { '' })) -BackgroundColor DarkRed -ForegroundColor White -NoNewline
     Write-Host "$CmdPromptUserAndComputer " -ForegroundColor DarkGreen -NoNewline
     Write-Host "$currentFolder " -ForegroundColor Blue -NoNewline
 
     $gitBranch = git rev-parse --abbrev-ref HEAD
     if ($gitBranch){
         Write-Host "($gitBranch) " -NoNewline -ForegroundColor Cyan
-        
-        if (Get-Command "az" -errorAction SilentlyContinue)
-        {
-            $azureSubscription = Get-CachedOperation -Name azureSubscription -Command {az account show --query name}
-            $azureSubscription = $azureSubscription.Trim('"')
-            if($azureSubscription -like "*prod*"){
-                Write-Host "[$azureSubscription] " -NoNewline -ForegroundColor DarkRed
-            }
-            else{
-                Write-Host "[$azureSubscription] " -NoNewline -ForegroundColor Yellow
-            }
-            
+    }
+
+    if (Get-Command "az" -errorAction SilentlyContinue)
+    {
+        $azureSubscription = Get-CachedOperation -Name azureSubscription -Command {az account show --query name}
+        $azureSubscription = $azureSubscription.Trim('"')
+        if($azureSubscription -like "*prod*"){
+            Write-Host "[$azureSubscription] " -NoNewline -ForegroundColor DarkRed
         }
+        else{
+            Write-Host "[$azureSubscription] " -NoNewline -ForegroundColor Yellow
+        }
+        
     }
 
     Write-Host ""
@@ -61,8 +62,8 @@ function prompt {
 function jwtd([String] $token) {
     Write-Host ""
     Write-Host ""
-    
-    if (!$token.Contains(".") -or !$token.StartsWith("eyJ")) { 
+    $tokenSplit = $token.Split('.')
+    if (!$token.Contains(".") -or !$token.StartsWith("eyJ") -or $tokenSplit.Length -ne 3) { 
         Write-Error "Invalid token" -ErrorAction Stop 
     }
     
@@ -80,7 +81,6 @@ function jwtd([String] $token) {
         return [System.Text.Encoding]::UTF8.GetString([convert]::FromBase64String($data)) | ConvertFrom-Json | ConvertTo-Json
     }
 
-    $tokenSplit = $token.Split('.')
     Write-Host "Header:"
     Write-Host (Get-ConvertOutput -data (Get-Base64encode -data $tokenSplit[0]))
     Write-Host ""
@@ -88,43 +88,86 @@ function jwtd([String] $token) {
     Write-Host (Get-ConvertOutput -data (Get-Base64encode -data $tokenSplit[1]))
     Write-Host ""
     Write-Host "Signarure:"
-    Write-Host $token.Split('.')[2]
+    Write-Host $tokenSplit[2]
+}
+
+# $DOCKER_DISTRO = "Ubuntu"
+# function docker {
+#     wsl -d $DOCKER_DISTRO docker -H unix:///mnt/wsl/shared-docker/docker.sock @Args
+# }
+
+# function docker-compose {
+#     wsl -d $DOCKER_DISTRO docker-compose -H unix:///mnt/wsl/shared-docker/docker.sock @Args
+# }
+
+
+function number-lookup([string] $number){
+    start chrome "https://www.180.no/search/all?w=$($number)"
+    # start chrome "https://www.1881.no/?query=$($number)"
+}
+
+
+function Get-CachedOperationFromFile([string] $name){
+    $destination_dir = "$($profile.Replace("\Microsoft.PowerShell_profile.ps1", ''))\cache\"
+    if(Test-Path "$destination_dir\$name"){
+        $file_value = Get-Content -Path "$destination_dir\$name"
+        return [CachedOperation]::new($file_value)
+    }
+
+    return $null
+}
+
+function Set-CachedOperation([CachedOperation] $cache){
+    $destination_dir = "$($profile.Replace("\Microsoft.PowerShell_profile.ps1", ''))\cache\"
+    If(!(Test-Path $destination_dir)){
+        New-Item -ItemType Directory -Force -Path $destination_dir
+    }
+    Set-Content "$destination_dir\$($cache.Name)" "$($cache.ToString())"
 }
 
 function Get-CachedOperation([String]$Name, [ScriptBlock]$Command, [Switch]$Force){
-   $CommandName = "cached_$($Name)"
-   $cachedResults = Get-Variable -Scope Global -Name $CommandName -ErrorAction SilentlyContinue | Select -ExpandProperty Value
-   $cacheTime = New-TimeSpan -Hours 1
-   if($force -or $null -eq $cachedResults ){
-        $CachedOperation = [CachedOperation]::new($Name, $command)
-        New-Variable -Scope Global -Name $CommandName -value $CachedOperation -Force
-        $cachedResults = $CachedOperation
-   }
+    $cachedResults = Get-CachedOperationFromFile($Name)
 
-   return $cachedResults.Value
+    if($force -or $null -eq $cachedResults){
+        $cachedResults = [CachedOperation]::new($Name, $command)
+        Set-CachedOperation($cachedResults)
+    }
+
+    return $cachedResults.Value
 }
 
 class CachedOperation
 {
-   # Automatic TimeStamp
-   [DateTime] $TimeStamp;
+    # Automatic TimeStamp
+    [DateTime] $TimeStamp;
 
-   # Command Nickname
-   [string] $Name;
+    # Command Nickname
+    [string] $Name;
 
-   # Command Instructions
-   [ScriptBlock] $Command;
+    # Command Instructions
+    [ScriptBlock] $Command;
 
-   # Output, whatever it is
-   [psCustomObject] $Value;
+    # Output, whatever it is
+    [psCustomObject] $Value;
 
-   #Constructor
-   CachedOperation ([string] $name, [ScriptBlock]$scriptblock)
-   {
-       $this.TimeStamp = [DateTime]::UtcNow
-       $this.Name = $name;
-       $this.Command = $scriptblock
-       $this.Value= $scriptblock.Invoke()
-   }
+    #Constructor
+    CachedOperation ([string] $name, [ScriptBlock]$scriptblock)
+    {
+        $this.TimeStamp = [DateTime]::UtcNow
+        $this.Name = $name;
+        $this.Command = $scriptblock
+        $this.Value= $scriptblock.Invoke()
+    }
 
+    CachedOperation([string] $string){
+        $array = $string.split(";")
+        $this.TimeStamp = $array.Get(0)
+        $this.Name = $array.Get(1)
+        $this.Command = [ScriptBlock]::Create($array.Get(2))
+        $this.Value = $array.Get(3)
+    }
+
+    [string]ToString(){
+        return "$($this.TimeStamp);$($this.Name);$($this.Command);$($this.Value)"
+    }
 }
