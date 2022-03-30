@@ -1,6 +1,9 @@
 
 function prompt {
+    Import-Module posh-git
     Set-PSReadlineKeyHandler -Chord Tab -Function MenuComplete
+    Set-PSReadLineOption -PredictionSource History
+    Set-PSReadLineOption -PredictionViewStyle ListView
 
     # Add SSH-key
     Start-Service ssh-agent
