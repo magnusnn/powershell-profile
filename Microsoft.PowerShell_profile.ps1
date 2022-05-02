@@ -1,9 +1,15 @@
 
 function prompt {
+    # Imports
     Import-Module posh-git
+    
+    # Setting up PSReadLine
     Set-PSReadlineKeyHandler -Chord Tab -Function MenuComplete
     Set-PSReadLineOption -PredictionSource History
     Set-PSReadLineOption -PredictionViewStyle ListView
+
+    # Autocomplete
+    kubectl completion powershell | Out-String | Invoke-Expression
 
     # Add SSH-key
     Start-Service ssh-agent
@@ -105,6 +111,15 @@ function jwtd([String] $token) {
 function number-lookup([string] $number){
     start chrome "https://www.180.no/search/all?w=$($number)"
     # start chrome "https://www.1881.no/?query=$($number)"
+}
+
+function møterom([string] $floor){
+    $destination_dir = "$($profile.Replace("\Microsoft.PowerShell_profile.ps1", ''))\romoversikt\"
+    if($floor -eq "7"){
+        start "$destination_dir\7.png"
+    }
+    
+    start "$destination_dir\2.png"
 }
 
 
