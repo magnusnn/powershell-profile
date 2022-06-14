@@ -28,6 +28,7 @@ function prompt {
     if($currentFolder -like "*$CurrentUser*"){
         $currentFolder = -join ("~", $currentFolder.Split("$CurrentUser")[1])
     }
+    $Host.UI.RawUI.WindowTitle = "$currentFolder"
 
     # Test for Admin / Elevated
     $IsAdmin = (New-Object Security.Principal.WindowsPrincipal ([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
@@ -42,8 +43,9 @@ function prompt {
     Write-Host ""
 
     if ($IsAdmin){
-        Write-Host "[Admin]" -BackgroundColor DarkRed -ForegroundColor White -NoNewline
-        Write-Host " " -NoNewline
+        Write-Host "🚨" -NoNewline
+        Write-Host "Admin" -BackgroundColor Red -ForegroundColor White -NoNewline
+        Write-Host "🚨 " -NoNewline
     }
 
     Write-Host "$CmdPromptUserAndComputer " -ForegroundColor DarkGreen -NoNewline
@@ -59,7 +61,7 @@ function prompt {
         [CachedOperation]$azAccountShow, [bool]$cacheUpdated = Get-CachedOperation -Name azAccountShow -Command {az account show --query name}
         $azAccountShowValue = $azAccountShow.Value.Trim('"')
         if($azAccountShowValue -like "*prod*"){
-            Write-Host "[$azAccountShowValue] " -NoNewline -ForegroundColor DarkRed
+            Write-Host "⚠️[$azAccountShowValue]⚠️ " -NoNewline -ForegroundColor DarkRed
         }
         else{
             Write-Host "[$azAccountShowValue] " -NoNewline -ForegroundColor Yellow
@@ -67,7 +69,7 @@ function prompt {
 
         if($cacheUpdated){
             Write-Host ""
-            Write-Host "Refreshed cache for '$($azAccountShow.Name)'" -NoNewline -ForegroundColor DarkGray
+            Write-Host "Refreshed cache for '$($azAccountShow.Name)' 🚀" -NoNewline -ForegroundColor DarkGray
         }
         
     }
