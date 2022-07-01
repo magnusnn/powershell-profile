@@ -71,7 +71,20 @@ function prompt {
             Write-Host ""
             Write-Host "Refreshed cache for '$($azAccountShow.Name)' 🚀" -NoNewline -ForegroundColor DarkGray
         }
-        
+    }
+
+    if (Get-Command "kubectl" -errorAction SilentlyContinue)
+    {
+        $currentContext = kubectl config view -o jsonpath='{.current-context}'
+        if($currentContext -Contains "prod")
+        {
+            Write-Host "⚠️[$currentContext]⚠️ " -NoNewline -ForegroundColor DarkRed
+        }
+        else
+        {
+            $color = $currentContext.split("-")[-1]
+            Write-Host "[$currentContext] " -NoNewline -ForegroundColor $color
+        }
     }
 
     Write-Host ""
