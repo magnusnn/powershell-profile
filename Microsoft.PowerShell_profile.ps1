@@ -82,8 +82,8 @@ function prompt {
         }
         else
         {
-            $color = $currentContext.split("-")[-1]
-            Write-Host "[$currentContext] " -NoNewline -ForegroundColor $color
+            # $color = $currentContext.split("-")[-1]
+            Write-Host "[$currentContext] " -NoNewline -ForegroundColor DarkYellow
         }
     }
 
