@@ -25,6 +25,9 @@ function prompt {
 
     $currentFolder = "$(Get-Location)";
 
+    [CachedOperation]$azAccountShow = $null;
+    [CachedOperation]$aksCurrentContext = $null;
+
     if($currentFolder -like "*$CurrentUser*"){
         $currentFolder = -join ("~", $currentFolder.Split("$CurrentUser")[1])
     }
@@ -58,7 +61,7 @@ function prompt {
 
     if (Get-Command "az" -errorAction SilentlyContinue)
     {
-        [CachedOperation]$azAccountShow, [bool]$cacheUpdated = Get-CachedOperation -Name azAccountShow -Command {az account show --query name}
+        $azAccountShow = Get-CachedOperation -Name azAccountShow -Command {az account show --query name}
         $azAccountShowValue = $azAccountShow.Value.Trim('"')
         if($azAccountShowValue -like "*prod*"){
             Write-Host "⚠️[$azAccountShowValue]⚠️ " -NoNewline -ForegroundColor DarkRed
@@ -66,30 +69,43 @@ function prompt {
         else{
             Write-Host "[$azAccountShowValue] " -NoNewline -ForegroundColor Yellow
         }
-
-        if($cacheUpdated){
-            Write-Host ""
-            Write-Host "Refreshed cache for '$($azAccountShow.Name)' 🚀" -NoNewline -ForegroundColor DarkGray
-        }
     }
 
     if (Get-Command "kubectl" -errorAction SilentlyContinue)
     {
-        $currentContext = kubectl config view -o jsonpath='{.current-context}'
-        if($currentContext -Contains "prod")
+        $aksCurrentContext = Get-CachedOperation -Name aksCurrentContext -Command {kubectl config view -o jsonpath='{.current-context}'}
+        $aksCurrentContextValue = $aksCurrentContext.Value
+        if($aksCurrentContextValue -Contains "prod")
         {
-            Write-Host "⚠️[$currentContext]⚠️ " -NoNewline -ForegroundColor DarkRed
+            Write-Host "⚠️[$aksCurrentContextValue]⚠️ " -NoNewline -ForegroundColor DarkRed
         }
         else
         {
             # $color = $currentContext.split("-")[-1]
-            Write-Host "[$currentContext] " -NoNewline -ForegroundColor DarkYellow
+            Write-Host "[$aksCurrentContextValue] " -NoNewline -ForegroundColor DarkYellow
         }
     }
+
+    CheckIfCacheIsUpdated -CachedOperations @($azAccountShow, $aksCurrentContext)
 
     Write-Host ""
     return "$ "
 }
+
+function CheckIfCacheIsUpdated([CachedOperation[]] $CachedOperations){
+    function PrintCacheUpdated([string] $Name){
+        Write-Host ""
+        Write-Host "Refreshed cache for '$Name' 🚀" -NoNewline -ForegroundColor DarkGray
+    }
+
+    foreach ($operation in $CachedOperations){
+        if($operation.CacheUpdated){
+            PrintCacheUpdated -Name $operation.Name
+        }
+    }
+}
+
+
 
 function jwtd([String] $token) {
     Write-Host ""
@@ -158,15 +174,13 @@ function Set-CachedOperation([CachedOperation] $cache){
 
 function Get-CachedOperation([String]$Name, [ScriptBlock]$Command, [Switch]$Force){
     $cachedResults = Get-CachedOperationFromFile($Name)
-    [bool]$cacheUpdated = 0
 
     if($force -or $null -eq $cachedResults -or $cachedResults.TimeStamp.AddDays(2) -lt [DateTime]::UtcNow){
-        $cachedResults = [CachedOperation]::new($Name, $command)
+        $cachedResults = [CachedOperation]::new($Name, $command, 1)
         Set-CachedOperation($cachedResults)
-        $cacheUpdated = 1
     }
 
-    return $cachedResults, $cacheUpdated
+    return $cachedResults
 }
 
 class CachedOperation
@@ -183,13 +197,16 @@ class CachedOperation
     # Output, whatever it is
     [psCustomObject] $Value;
 
+    [bool] $CacheUpdated;
+
     #Constructor
-    CachedOperation ([string] $name, [ScriptBlock]$scriptblock)
+    CachedOperation ([string] $name, [ScriptBlock]$scriptblock, [bool]$cacheUpdated)
     {
         $this.TimeStamp = [DateTime]::UtcNow
         $this.Name = $name;
         $this.Command = $scriptblock
         $this.Value= $scriptblock.Invoke()
+        $this.CacheUpdated = $cacheUpdated
     }
 
     CachedOperation([string] $string){
@@ -198,6 +215,7 @@ class CachedOperation
         $this.Name = $array.Get(1)
         $this.Command = [ScriptBlock]::Create($array.Get(2))
         $this.Value = $array.Get(3)
+        $this.CacheUpdated = 0
     }
 
     [string]ToString(){
