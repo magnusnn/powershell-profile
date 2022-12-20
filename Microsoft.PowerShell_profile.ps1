@@ -41,6 +41,9 @@ function prompt {
     if($lastCommand -like "az account set *"){
         $_ = Get-CachedOperation -Name azAccountShow -Command {az account show --query name} -Force
     }
+    if($lastCommand -like "az aks get-credentials *" -or $lastCommand -like "kubectl config use-context *"){
+        $_ = Get-CachedOperation -Name aksCurrentContext -Command {kubectl config view -o jsonpath='{.current-context}'} -Force
+    }
 
     #Decorate the CMD Prompt
     Write-Host ""
@@ -75,7 +78,7 @@ function prompt {
     {
         $aksCurrentContext = Get-CachedOperation -Name aksCurrentContext -Command {kubectl config view -o jsonpath='{.current-context}'}
         $aksCurrentContextValue = $aksCurrentContext.Value
-        if($aksCurrentContextValue -Contains "prod")
+        if($aksCurrentContextValue -like "*prod*")
         {
             Write-Host "⚠️[$aksCurrentContextValue]⚠️ " -NoNewline -ForegroundColor DarkRed
         }
