@@ -1,41 +1,47 @@
 using module custom-cache
 using module custom-jwtd
 using module custom-pscolor
+using module custom-bluetoothconnector
+using module custom-azaccesstoken
+
+$local:CurrentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name.split("\")[1];
+$local:CurrentComputer = [System.Net.Dns]::GetHostName();
+$local:CmdPromptUserAndComputer = "$CurrentUser@$CurrentComputer"
+$local:EmojiToUse = Get-Random -InputObject @('💩','🐛','🧑‍🔧','🦒','🔥','🔪','😎','🔫','🦆', '🙋‍♂️','🍌','🤌','🧑‍💻')
+
+# Imports
+Import-Module posh-git
+
+# Setting up PSReadLine
+Set-PSReadlineKeyHandler -Chord Tab -Function MenuComplete
+Set-PSReadLineOption -PredictionSource History
+Set-PSReadLineOption -PredictionViewStyle ListView
+
+# Autocomplete
+kubectl completion powershell | Out-String | Invoke-Expression
+
+# Add SSH-key
+Start-Service ssh-agent
+$sshKeysListed = $(ssh-add -l)
+if($sshKeysListed -like ""){
+    $(ssh-add $PROFILE\.ssh\id_rsa)
+}
+
+# CacheVariables
+[CachedOperation]$azAccountShow = $null;
+[CachedOperation]$aksCurrentContext = $null;
+
+Remove-Powershell73Colors
 
 function prompt {
-    # Imports
-    Import-Module posh-git
-
-    # Setting up PSReadLine
-    Set-PSReadlineKeyHandler -Chord Tab -Function MenuComplete
-    Set-PSReadLineOption -PredictionSource History
-    Set-PSReadLineOption -PredictionViewStyle ListView
-
-    # Autocomplete
-    kubectl completion powershell | Out-String | Invoke-Expression
-
-    # Add SSH-key
-    Start-Service ssh-agent
-    $sshKeysListed = $(ssh-add -l)
-    if($sshKeysListed -like ""){
-        $(ssh-add $PROFILE\.ssh\id_rsa)
-    }
-
-    #Configure current user, current folder and date outputs
-    $CurrentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name.split("\")[1];
-    $CurrentComputer = [System.Net.Dns]::GetHostName();
-    $CmdPromptUserAndComputer = "$CurrentUser@$CurrentComputer"
-
+    #Configure current user, current folder and date outputs 
     $currentFolder = "$(Get-Location)";
-
-    [CachedOperation]$azAccountShow = $null;
-    [CachedOperation]$aksCurrentContext = $null;
 
     if($currentFolder -like "*$CurrentUser*"){
         $currentFolder = -join ("~", $currentFolder.Split("$CurrentUser")[1])
     }
-    $Host.UI.RawUI.WindowTitle = "$currentFolder"
-    Remove-Powershell73Colors
+
+    $Host.UI.RawUI.WindowTitle = "$EmojiToUse $currentFolder"
     Add-CustomListener
 
     #Decorate the CMD Prompt
@@ -127,4 +133,8 @@ function Get-KubernetesClusterInfo{
             Write-Host "[$aksCurrentContextValue] " -NoNewline -ForegroundColor DarkYellow
         }
     }
+}
+
+function Update-Environment {
+    $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 }
